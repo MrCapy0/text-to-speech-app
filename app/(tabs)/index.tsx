@@ -9,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 
 // Sample data: array of objects with name and phrase
@@ -30,6 +31,10 @@ export default function HomeScreen() {
   const [editNameValue, setEditNameValue] = useState('');
   // Data
   const [phrases, setPhrases] = useState(INITIAL_PHRASES);
+  // Add new item modal
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPhrase, setNewItemPhrase] = useState('');
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -164,6 +169,22 @@ export default function HomeScreen() {
         { text: 'Duplicate', onPress: () => duplicateItem(id) },
       ]
     );
+  };
+
+  const handleAddItem = () => {
+    if (newItemName.trim() === '' || newItemPhrase.trim() === '') {
+      Alert.alert('Error', 'Both name and phrase are required');
+      return;
+    }
+    const newItem = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      name: newItemName.trim(),
+      phrase: newItemPhrase.trim(),
+    };
+    setPhrases(prev => [...prev, newItem]);
+    setNewItemName('');
+    setNewItemPhrase('');
+    setIsAddModalVisible(false);
   };
 
   const renderItem = ({ item }: { item: typeof phrases[0] }) => {
@@ -305,7 +326,60 @@ export default function HomeScreen() {
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListFooterComponent={
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => setIsAddModalVisible(true)}
+          >
+            <Text style={styles.addButtonText}>+ Add New Item</Text>
+          </TouchableOpacity>
+        }
       />
+
+      {/* Add Item Modal */}
+      <Modal
+        visible={isAddModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsAddModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Add New Item</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Name"
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Phrase"
+              value={newItemPhrase}
+              onChangeText={setNewItemPhrase}
+              multiline
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setIsAddModalVisible(false);
+                  setNewItemName('');
+                  setNewItemPhrase('');
+                }}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleAddItem}
+              >
+                <Text style={styles.modalButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -488,5 +562,61 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  // Add button
+  addButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 20,
+    width: '80%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 4,
+    padding: 8,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 4,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '500',
   },
 });
