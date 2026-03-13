@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { styles } from './styles';
+import { translateWithGoogle } from './translationService';
 
 // Sample data: array of objects with name and phrase
 const INITIAL_PHRASES = [
@@ -36,6 +37,10 @@ export default function HomeScreen() {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [newItemPhrase, setNewItemPhrase] = useState('');
+
+  // Translation.
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translations, setTranslations] = useState<Map<string, string>>(new Map());
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -304,8 +309,21 @@ export default function HomeScreen() {
     );
   };
 
-  const handleGenerate = () => {
-    console.log('Generate button pressed');
+  const handleGenerate = async () => {
+
+    if (phrases.length === 0) return;
+    setIsTranslating(true);
+    const targetLanguage = 'pt';
+    const newTranslations = new Map<string, string>();
+
+    for (const item of phrases) {
+      const translated = await translateWithGoogle(item.phrase, targetLanguage);
+      newTranslations.set(item.id, translated);
+    }
+
+    setTranslations(newTranslations);
+    setIsTranslating(false);
+    Alert.alert('Done!', 'Completed!');
   };
 
   return (
