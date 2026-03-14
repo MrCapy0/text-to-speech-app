@@ -236,4 +236,19 @@ export const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: '500',
     },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    settingsButton: {
+        marginRight: 8,
+        padding: 4,
+    },
+    settingsIcon: {
+        fontSize: 24,
+        color: '#333',
+    },
+    disabledButton: {
+        backgroundColor: '#ccc',
+    },
 });

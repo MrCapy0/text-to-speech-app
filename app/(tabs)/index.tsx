@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 
+import SettingsModal from './settingsModal';
 import { styles } from './styles';
 import { translateWithGoogle } from './translationService';
 
@@ -41,6 +42,9 @@ export default function HomeScreen() {
   // Translation.
   const [isTranslating, setIsTranslating] = useState(false);
   const [translations, setTranslations] = useState<Map<string, string>>(new Map());
+
+  // Settings
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
@@ -326,6 +330,9 @@ export default function HomeScreen() {
     Alert.alert('Done!', 'Completed!');
   };
 
+  const handleApiKeySaved = (apiKey: string) => {
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
@@ -333,9 +340,25 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.appName}>Text to Speech</Text>
-        <TouchableOpacity style={styles.generateButton} onPress={handleGenerate}>
-          <Text style={styles.generateButtonText}>Generate</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* Settings button */}
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => setIsSettingsVisible(true)}
+          >
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+          {/* Generate button */}
+          <TouchableOpacity
+            style={[styles.generateButton, isTranslating && styles.disabledButton]}
+            onPress={handleGenerate}
+            disabled={isTranslating}
+          >
+            <Text style={styles.generateButtonText}>
+              {isTranslating ? 'Translating...' : 'Generate'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* List */}
@@ -399,6 +422,11 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      <SettingsModal
+        visible={isSettingsVisible}
+        onClose={() => setIsSettingsVisible(false)}
+        onSave={handleApiKeySaved}
+      />
+    </SafeAreaView >
   );
 }
