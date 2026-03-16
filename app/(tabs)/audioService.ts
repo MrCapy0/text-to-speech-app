@@ -51,12 +51,11 @@ export async function testAuth(): Promise<boolean> {
     }
 }
 
-/**
- * Sintetiza fala e salva o arquivo
- */
+// audioService.ts (partes modificadas)
 export async function synthesizeSpeech(
     text: string,
     name: string,
+    itemId: string,
     voice: string = 'en-US_MichaelV3Voice'
 ): Promise<string> {
     const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
@@ -69,17 +68,8 @@ export async function synthesizeSpeech(
     await ensureDirectoryExists();
 
     // Codifica a autenticação com base64-js
-    const authString = 'apikey:' + "TNZMyWoPlm1vGu_IaqSponOK0Ve3495ngBLIdYfX2kwD";
+    const authString = 'apikey:' + apiKey;
     const auth = 'Basic ' + encodeBase64(authString);
-
-    // Monta o corpo da requisição exatamente como no Postman
-    const requestBody = {
-        text: text,
-        voice: voice,
-    };
-
-    console.log('Service URL:', serviceUrl);
-    console.log('Request body:', requestBody);
 
     const url = `${serviceUrl}/v1/synthesize?voice=${encodeURIComponent(voice)}&text=${encodeURIComponent(text)}`;
     const response = await fetch(url, {
@@ -92,20 +82,17 @@ export async function synthesizeSpeech(
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error('IBM Response error:', response.status, errorText);
         throw new Error(`IBM TTS error (${response.status}): ${errorText}`);
     }
 
-    // Processa o áudio (igual antes)
     const audioData = await response.arrayBuffer();
     const uint8Array = new Uint8Array(audioData);
 
     const safeName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const timestamp = Date.now();
-    const fileName = `${safeName}_${timestamp}.mp3`;
+    const fileName = `${safeName}_${itemId}.mp3`;
     const audioFile = new FileSystem.File(AUDIO_DIR.uri, fileName);
 
     await audioFile.write(uint8Array);
-    console.log("saved on: " + AUDIO_DIR.uri + fileName);
+    console.log("Saved on: " + audioFile.uri);
     return audioFile.uri;
 }

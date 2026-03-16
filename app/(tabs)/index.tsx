@@ -11,6 +11,8 @@ import {
   View
 } from 'react-native';
 
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 import { synthesizeSpeech } from './audioService';
 import SettingsModal from './settingsModal';
 import { styles } from './styles';
@@ -48,6 +50,79 @@ export default function HomeScreen() {
   // Settings
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
+  // Audio
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [sound, setSound] = useState<Audio.Sound | null>(null);
+
+  const playAudio = async (id: string, fileUri: string) => {
+    // Se já está tocando este item, para
+    if (playingId === id && sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(null);
+      setPlayingId(null);
+      return;
+    }
+    // Stop this if is playing another
+    if (sound) {
+      await sound.stopAsync();
+      await sound.unloadAsync();
+      setSound(null);
+      setPlayingId(null);
+    }
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: fileUri },
+        { shouldPlay: true }
+      );
+      setSound(newSound);
+      setPlayingId(id);
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setSound(null);
+          setPlayingId(null);
+          newSound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao reproduzir áudio:', error);
+      Alert.alert('Erro', 'Não foi possível reproduzir o áudio');
+    }
+  };
+
+  const deleteAudioForItem = async (id: string) => {
+    const filePath = audioFiles.get(id);
+    if (filePath) {
+      try {
+        await FileSystem.deleteAsync(filePath, { idempotent: true });
+      } catch (error) {
+        console.error('Erro ao deletar arquivo de áudio:', error);
+      }
+      // Remove do estado
+      setAudioFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(id);
+        return newMap;
+      });
+      // Se estiver tocando, para e descarrega
+      if (playingId === id && sound) {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+        setSound(null);
+        setPlayingId(null);
+      }
+    }
+  };
+
+  const clearItemData = async (id: string) => {
+    await deleteAudioForItem(id);
+    setTranslations(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(id);
+      return newMap;
+    });
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedIds(prev => {
       const newSet = new Set(prev);
@@ -83,7 +158,7 @@ export default function HomeScreen() {
     setEditPhraseValue('');
   };
 
-  const saveEditingPhrase = (id: string) => {
+  const saveEditingPhrase = async (id: string) => {
     if (editPhraseValue.trim() === '') {
       Alert.alert('Error', 'Phrase cannot be empty');
       return;
@@ -93,6 +168,8 @@ export default function HomeScreen() {
     );
     setEditingPhraseId(null);
     setEditPhraseValue('');
+    // Limpa dados associados (tradução e áudio)
+    await clearItemData(id);
   };
 
   // Name editing
@@ -109,7 +186,7 @@ export default function HomeScreen() {
     setEditNameValue('');
   };
 
-  const saveEditingName = (id: string) => {
+  const saveEditingName = async (id: string) => {
     if (editNameValue.trim() === '') {
       Alert.alert('Error', 'Name cannot be empty');
       return;
@@ -119,6 +196,7 @@ export default function HomeScreen() {
     );
     setEditingNameId(null);
     setEditNameValue('');
+    await clearItemData(id);
   };
 
   // Duplicate
@@ -144,9 +222,10 @@ export default function HomeScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            await deleteAudioForItem(id); // remove arquivo físico e do estado
             setPhrases(prev => prev.filter(item => item.id !== id));
-            // Clean up any editing state
+            // Limpa outros estados (expansão, edição)
             if (expandedIds.has(id)) {
               setExpandedIds(prev => {
                 const newSet = new Set(prev);
@@ -307,6 +386,19 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.editPhraseButtonText}>Edit</Text>
                 </TouchableOpacity>
+                {translations.has(item.id) && (
+                  <Text style={styles.translatedText}>"{translations.get(item.id)}"</Text>
+                )}
+                {audioFiles.has(item.id) && (
+                  <TouchableOpacity
+                    style={styles.audioButton}
+                    onPress={() => playAudio(item.id, audioFiles.get(item.id)!)}
+                  >
+                    <Text style={styles.audioButtonText}>
+                      {playingId === item.id ? '⏹️ Stop' : '▶️ Play'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -316,7 +408,6 @@ export default function HomeScreen() {
   };
 
   const handleGenerate = async () => {
-
     if (phrases.length === 0) return;
     setIsTranslating(true);
     const targetLanguage = 'pt';
@@ -337,7 +428,7 @@ export default function HomeScreen() {
       const translatedText = newTranslations.get(item.id);
       if (translatedText) {
         try {
-          const filePath = await synthesizeSpeech(translatedText, item.name);
+          const filePath = await synthesizeSpeech(translatedText, item.name, item.id, "pt-BR_LucasNatural");
           newAudioFiles.set(item.id, filePath);
         } catch (error) {
           console.error(`Audio generation failed for ${item.name}:`, error);
@@ -380,8 +471,8 @@ export default function HomeScreen() {
               {isTranslating
                 ? 'Translating...'
                 : isGeneratingAudio
-                ? 'Generating Audio...'
-                : 'Generate'}
+                  ? 'Generating Audio...'
+                  : 'Generate'}
             </Text>
           </TouchableOpacity>
         </View>

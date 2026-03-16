@@ -251,4 +251,24 @@ export const styles = StyleSheet.create({
     disabledButton: {
         backgroundColor: '#ccc',
     },
+    translatedText: {
+        fontSize: 14,
+        fontStyle: 'italic',
+        color: '#666',
+        marginTop: 4,
+        marginBottom: 8,
+    },
+    audioButton: {
+        backgroundColor: '#007AFF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+        marginTop: 8,
+    },
+    audioButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 });
