@@ -414,7 +414,7 @@ export default function HomeScreen() {
     const newTranslations = new Map<string, string>();
 
     for (const item of phrases) {
-      const translated = await translateWithGoogle(item.phrase, targetLanguage);
+      const translated = await translateWithGoogle(item.phrase);
       newTranslations.set(item.id, translated);
     }
 
@@ -428,7 +428,7 @@ export default function HomeScreen() {
       const translatedText = newTranslations.get(item.id);
       if (translatedText) {
         try {
-          const filePath = await synthesizeSpeech(translatedText, item.name, item.id, "pt-BR_LucasNatural");
+          const filePath = await synthesizeSpeech(translatedText, item.name, item.id);
           newAudioFiles.set(item.id, filePath);
         } catch (error) {
           console.error(`Audio generation failed for ${item.name}:`, error);

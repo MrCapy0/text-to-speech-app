@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system';
 
 const STORAGE_IBM_KEY = 'IBM_API_KEY';
 const STORAGE_IBM_URL = 'IBM_SERVICE_URL';
+const STORAGE_VOICE = 'VOICE'; // from settings modal.
 
 const AUDIO_DIR = new FileSystem.Directory(
     FileSystem.Paths.document,
@@ -51,15 +52,15 @@ export async function testAuth(): Promise<boolean> {
     }
 }
 
-// audioService.ts (partes modificadas)
+// audioService.ts (trecho modificado)
 export async function synthesizeSpeech(
     text: string,
     name: string,
-    itemId: string,
-    voice: string = 'en-US_MichaelV3Voice'
+    itemId: string
 ): Promise<string> {
     const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
     const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
+    const voice = await AsyncStorage.getItem(STORAGE_VOICE) || 'pt-BR_CamilaNatural';
 
     if (!apiKey || !serviceUrl) {
         throw new Error('IBM Watson credentials not configured.');
@@ -67,7 +68,6 @@ export async function synthesizeSpeech(
 
     await ensureDirectoryExists();
 
-    // Codifica a autenticação com base64-js
     const authString = 'apikey:' + apiKey;
     const auth = 'Basic ' + encodeBase64(authString);
 
@@ -93,6 +93,5 @@ export async function synthesizeSpeech(
     const audioFile = new FileSystem.File(AUDIO_DIR.uri, fileName);
 
     await audioFile.write(uint8Array);
-    console.log("Saved on: " + audioFile.uri);
     return audioFile.uri;
 }
