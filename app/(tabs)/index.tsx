@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 
+import { synthesizeSpeech } from './audioService';
 import SettingsModal from './settingsModal';
 import { styles } from './styles';
 import { translateWithGoogle } from './translationService';
@@ -19,9 +20,6 @@ import { translateWithGoogle } from './translationService';
 const INITIAL_PHRASES = [
   { id: '1', name: 'Greeting', phrase: 'Hello, how are you today?' },
   { id: '2', name: 'Farewell', phrase: 'Goodbye, see you later!' },
-  { id: '3', name: 'Thanks', phrase: 'Thank you very much!' },
-  { id: '4', name: 'Question', phrase: 'What is your name?' },
-  { id: '5', name: 'Weather', phrase: 'The weather is nice today.' },
 ];
 
 export default function HomeScreen() {
@@ -42,6 +40,10 @@ export default function HomeScreen() {
   // Translation.
   const [isTranslating, setIsTranslating] = useState(false);
   const [translations, setTranslations] = useState<Map<string, string>>(new Map());
+
+  // Audio generation states
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [audioFiles, setAudioFiles] = useState<Map<string, string>>(new Map());
 
   // Settings
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
@@ -327,10 +329,29 @@ export default function HomeScreen() {
 
     setTranslations(newTranslations);
     setIsTranslating(false);
-    Alert.alert('Done!', 'Completed!');
+
+    setIsGeneratingAudio(true);
+    const newAudioFiles = new Map<string, string>();
+
+    for (const item of phrases) {
+      const translatedText = newTranslations.get(item.id);
+      if (translatedText) {
+        try {
+          const filePath = await synthesizeSpeech(translatedText, item.name);
+          newAudioFiles.set(item.id, filePath);
+        } catch (error) {
+          console.error(`Audio generation failed for ${item.name}:`, error);
+          Alert.alert('Error', `Failed to generate audio for "${item.name}". Check your IBM credentials.`);
+        }
+      }
+    }
+
+    setAudioFiles(newAudioFiles);
+    setIsGeneratingAudio(false);
+    Alert.alert('Success', 'Translation and audio generation completed!');
   };
 
-  const handleApiKeySaved = (apiKey: string) => {
+  const handleApiKeySaved = () => {
   };
 
   return (
@@ -341,21 +362,26 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.appName}>Text to Speech</Text>
         <View style={styles.headerRight}>
-          {/* Settings button */}
           <TouchableOpacity
             style={styles.settingsButton}
             onPress={() => setIsSettingsVisible(true)}
           >
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
-          {/* Generate button */}
           <TouchableOpacity
-            style={[styles.generateButton, isTranslating && styles.disabledButton]}
+            style={[
+              styles.generateButton,
+              (isTranslating || isGeneratingAudio) && styles.disabledButton
+            ]}
             onPress={handleGenerate}
-            disabled={isTranslating}
+            disabled={isTranslating || isGeneratingAudio}
           >
             <Text style={styles.generateButtonText}>
-              {isTranslating ? 'Translating...' : 'Generate'}
+              {isTranslating
+                ? 'Translating...'
+                : isGeneratingAudio
+                ? 'Generating Audio...'
+                : 'Generate'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -425,7 +451,6 @@ export default function HomeScreen() {
       <SettingsModal
         visible={isSettingsVisible}
         onClose={() => setIsSettingsVisible(false)}
-        onSave={handleApiKeySaved}
       />
     </SafeAreaView >
   );

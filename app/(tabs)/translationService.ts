@@ -15,8 +15,6 @@ export const translateWithGoogle = async (
             return text;
         }
 
-        console.log(apiKey);
-
         try {
             const response = await fetch(
                 `https://translation.googleapis.com/language/translate/v2?key=${apiKey}`,
