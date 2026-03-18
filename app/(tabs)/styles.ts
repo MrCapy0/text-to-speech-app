@@ -271,4 +271,33 @@ export const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
+    centered: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    projectItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: '#fff',
+        borderRadius: 8,
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+    },
+    projectName: {
+        flex: 1,
+    },
+    projectTitle: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#333',
+    },
+    backButton: {
+        fontSize: 16,
+        color: '#007AFF',
+        marginRight: 8,
+    },
 });

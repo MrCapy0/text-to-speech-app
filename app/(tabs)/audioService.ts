@@ -26,37 +26,12 @@ function encodeBase64(str: string): string {
     return fromByteArray(bytes);
 }
 
-/**
- * Testa a autenticação listando as vozes disponíveis (GET)
- */
-export async function testAuth(): Promise<boolean> {
-    try {
-        const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
-        const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
-        if (!apiKey || !serviceUrl) return false;
-
-        const authString = 'apikey:' + apiKey;
-        const auth = 'Basic ' + encodeBase64(authString);
-
-        const response = await fetch(serviceUrl + '/v1/voices', {
-            method: 'GET',
-            headers: {
-                'Authorization': auth,
-            },
-        });
-
-        return response.ok;
-    } catch (error) {
-        console.error('Auth test failed:', error);
-        return false;
-    }
-}
-
 // audioService.ts (trecho modificado)
 export async function synthesizeSpeech(
     text: string,
     name: string,
-    itemId: string
+    itemId: string,
+    projectId: string
 ): Promise<string> {
     const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
     const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
@@ -66,7 +41,12 @@ export async function synthesizeSpeech(
         throw new Error('IBM Watson credentials not configured.');
     }
 
-    await ensureDirectoryExists();
+    // Diretório base
+    const baseDir = new FileSystem.Directory(FileSystem.Paths.document, 'Text to Speech Project');
+    const projectDir = new FileSystem.Directory(baseDir.uri, projectId);
+    if (!(projectDir.exists)) {
+        await projectDir.create({ intermediates: true });
+    }
 
     const authString = 'apikey:' + apiKey;
     const auth = 'Basic ' + encodeBase64(authString);
@@ -90,7 +70,7 @@ export async function synthesizeSpeech(
 
     const safeName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const fileName = `${safeName}_${itemId}.mp3`;
-    const audioFile = new FileSystem.File(AUDIO_DIR.uri, fileName);
+    const audioFile = new FileSystem.File(projectDir.uri, fileName);
 
     await audioFile.write(uint8Array);
     return audioFile.uri;
