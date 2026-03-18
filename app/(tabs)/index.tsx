@@ -93,24 +93,23 @@ export default function HomeScreen() {
   const deleteAudioForItem = async (id: string) => {
     const filePath = audioFiles.get(id);
     if (filePath) {
-      try {
-        await FileSystem.deleteAsync(filePath, { idempotent: true });
-      } catch (error) {
-        console.error('Erro ao deletar arquivo de áudio:', error);
-      }
-      // Remove do estado
-      setAudioFiles(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(id);
-        return newMap;
-      });
-      // Se estiver tocando, para e descarrega
       if (playingId === id && sound) {
         await sound.stopAsync();
         await sound.unloadAsync();
         setSound(null);
         setPlayingId(null);
       }
+
+      try {
+        const audioFile = new FileSystem.File(filePath);
+        await audioFile.delete();
+      } catch (error) {
+      }
+      setAudioFiles(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(id);
+        return newMap;
+      });
     }
   };
 
