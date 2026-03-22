@@ -4,18 +4,6 @@ import * as FileSystem from 'expo-file-system';
 
 const STORAGE_IBM_KEY = 'IBM_API_KEY';
 const STORAGE_IBM_URL = 'IBM_SERVICE_URL';
-const STORAGE_VOICE = 'VOICE'; // from settings modal.
-
-const AUDIO_DIR = new FileSystem.Directory(
-    FileSystem.Paths.document,
-    'Text to Speech Project'
-);
-
-async function ensureDirectoryExists() {
-    if (!AUDIO_DIR.exists) {
-        await AUDIO_DIR.create({ intermediates: true });
-    }
-}
 
 /**
  * Codifica uma string para Base64 de forma segura (funciona com caracteres especiais)
@@ -28,14 +16,14 @@ function encodeBase64(str: string): string {
 
 // audioService.ts (trecho modificado)
 export async function synthesizeSpeech(
-    text: string,
-    name: string,
-    itemId: string,
-    projectId: string
+  text: string,
+  name: string,
+  itemId: string,
+  projectId: string,
+  voice: string
 ): Promise<string> {
-    const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
-    const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
-    const voice = await AsyncStorage.getItem(STORAGE_VOICE) || 'pt-BR_CamilaNatural';
+  const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
+  const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
 
     if (!apiKey || !serviceUrl) {
         throw new Error('IBM Watson credentials not configured.');

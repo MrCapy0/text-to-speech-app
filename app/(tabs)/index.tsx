@@ -14,37 +14,25 @@ import {
   View,
 } from 'react-native';
 import { synthesizeSpeech } from './audioService';
+import * as project from './project';
 import SettingsModal from './settingsModal';
 import { styles } from './styles';
 import { translateWithGoogle } from './translationService';
 
-// Tipos
-interface Phrase {
-  id: string;
-  name: string;
-  phrase: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  phrases: Phrase[];
-}
-
 // Dados iniciais (usados apenas se não houver projetos salvos)
-const INITIAL_PHRASES: Phrase[] = [
+const INITIAL_PHRASES: project.Phrase[] = [
   { id: '1', name: 'Greeting', phrase: 'Hello, how are you today?' },
   { id: '2', name: 'Farewell', phrase: 'Goodbye, see you later!' },
 ];
 
 export default function HomeScreen() {
   // Estados de projetos
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<project.Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   // Estados da UI de frases (só relevantes quando um projeto está selecionado)
-  const [phrases, setPhrases] = useState<Phrase[]>([]);
+  const [phrases, setPhrases] = useState<project.Phrase[]>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingPhraseId, setEditingPhraseId] = useState<string | null>(null);
   const [editPhraseValue, setEditPhraseValue] = useState('');
@@ -78,13 +66,22 @@ export default function HomeScreen() {
     try {
       const stored = await AsyncStorage.getItem('projects');
       if (stored) {
-        setProjects(JSON.parse(stored));
+        let parsed = JSON.parse(stored);
+        parsed = parsed.map((p: any) => ({
+          ...p,
+          sourceLanguage: p.sourceLanguage || 'pt',
+          targetLanguage: p.targetLanguage || 'pt',
+          voice: p.voice || 'pt-BR_CamilaNatural',
+        }));
+        setProjects(parsed);
       } else {
-        // Criar um projeto padrão
-        const defaultProject: Project = {
+        const defaultProject: project.Project = {
           id: 'default',
           name: 'Default Project',
           phrases: INITIAL_PHRASES,
+          sourceLanguage: 'pt',
+          targetLanguage: 'pt',
+          voice: 'pt-BR_CamilaNatural',
         };
         setProjects([defaultProject]);
         await AsyncStorage.setItem('projects', JSON.stringify([defaultProject]));
@@ -96,17 +93,19 @@ export default function HomeScreen() {
     }
   };
 
-  const saveProjects = async (updatedProjects: Project[]) => {
+  const saveProjects = async (updatedProjects: project.Project[]) => {
     setProjects(updatedProjects);
     await AsyncStorage.setItem('projects', JSON.stringify(updatedProjects));
   };
 
-  // Funções de projeto
   const createProject = async (name: string) => {
-    const newProject: Project = {
+    const newProject: project.Project = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       name,
       phrases: [],
+      sourceLanguage: 'pt',
+      targetLanguage: 'pt',
+      voice: 'pt-BR_CamilaNatural',
     };
     const updated = [...projects, newProject];
     await saveProjects(updated);
@@ -275,7 +274,7 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Both name and phrase are required');
       return;
     }
-    const newItem: Phrase = {
+    const newItem: project.Phrase = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
       name: newItemName.trim(),
       phrase: newItemPhrase.trim(),
@@ -336,7 +335,7 @@ export default function HomeScreen() {
   const duplicateItem = (id: string) => {
     const itemToDuplicate = phrases.find(item => item.id === id);
     if (!itemToDuplicate) return;
-    const newItem: Phrase = {
+    const newItem: project.Phrase = {
       ...itemToDuplicate,
       id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
     };
@@ -410,12 +409,16 @@ export default function HomeScreen() {
   };
 
   const handleGenerate = async () => {
+
     if (!selectedProjectId || phrases.length === 0) return;
+    const project = projects.find(p => p.id === selectedProjectId)!;
+    const { targetLanguage, voice } = project;
+
     setIsTranslating(true);
     const newTranslations = new Map<string, string>();
 
     for (const item of phrases) {
-      const translated = await translateWithGoogle(item.phrase);
+      const translated = await translateWithGoogle(item.phrase, targetLanguage);
       newTranslations.set(item.id, translated);
     }
 
@@ -424,12 +427,11 @@ export default function HomeScreen() {
 
     setIsGeneratingAudio(true);
     const newAudioFiles = new Map<string, string>();
-
     for (const item of phrases) {
       const translatedText = newTranslations.get(item.id);
       if (translatedText) {
         try {
-          const filePath = await synthesizeSpeech(translatedText, item.name, item.id, selectedProjectId);
+          const filePath = await synthesizeSpeech(translatedText, item.name, item.id, selectedProjectId, voice);
           newAudioFiles.set(item.id, filePath);
         } catch (error) {
           console.error(`Audio generation failed for ${item.name}:`, error);
@@ -468,7 +470,7 @@ export default function HomeScreen() {
     );
   };
 
-  const renderItem = ({ item }: { item: Phrase }) => {
+  const renderItem = ({ item }: { item: project.Phrase }) => {
     const isExpanded = expandedIds.has(item.id);
     const isEditingPhrase = editingPhraseId === item.id;
     const isEditingName = editingNameId === item.id;
@@ -590,153 +592,170 @@ export default function HomeScreen() {
   };
 
   if (isLoadingProjects) {
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.centered}>
-        <Text>Loading projects...</Text>
-      </View>
-    </SafeAreaView>
-  );
-}
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centered}>
+          <Text>Loading projects...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-if (!selectedProjectId) {
+  if (!selectedProjectId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <Text style={styles.appName}>Projects</Text>
+          <TouchableOpacity style={styles.addButton} onPress={openNewProjectModal}>
+            <Text style={styles.addButtonText}>+ New Project</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={projects}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.projectItem}>
+              <TouchableOpacity style={styles.projectName} onPress={() => selectProject(item.id)}>
+                <Text style={styles.projectTitle}>{item.name}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => confirmDeleteProject(item.id)}>
+                <Text style={styles.deleteIcon}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          contentContainerStyle={styles.listContent}
+        />
+        {/* Modal para novo projeto */}
+        <Modal
+          visible={isNewProjectModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setIsNewProjectModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>New Project</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Project name"
+                value={newProjectName}
+                onChangeText={setNewProjectName}
+                autoFocus
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setIsNewProjectModalVisible(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleCreateProject}
+                >
+                  <Text style={styles.modalButtonText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
+    );
+  }
+
+  // Tela de frases do projeto selecionado
+  const currentProject = projects.find(p => p.id === selectedProjectId);
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Text style={styles.appName}>Projects</Text>
-        <TouchableOpacity style={styles.addButton} onPress={openNewProjectModal}>
-          <Text style={styles.addButtonText}>+ New Project</Text>
+        <TouchableOpacity onPress={() => setSelectedProjectId(null)}>
+          <Text style={styles.backButton}>← Back</Text>
         </TouchableOpacity>
+        <Text style={styles.appName}>{currentProject?.name || 'Project'}</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.settingsButton} onPress={() => setIsSettingsVisible(true)}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.generateButton,
+              (isTranslating || isGeneratingAudio) && styles.disabledButton,
+            ]}
+            onPress={handleGenerate}
+            disabled={isTranslating || isGeneratingAudio}
+          >
+            <Text style={styles.generateButtonText}>
+              {isTranslating ? 'Translating...' : isGeneratingAudio ? 'Generating Audio...' : 'Generate'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
       <FlatList
-        data={projects}
+        data={phrases}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.projectItem}>
-            <TouchableOpacity style={styles.projectName} onPress={() => selectProject(item.id)}>
-              <Text style={styles.projectTitle}>{item.name}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => confirmDeleteProject(item.id)}>
-              <Text style={styles.deleteIcon}>🗑️</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListFooterComponent={
+          <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
+            <Text style={styles.addButtonText}>+ Add New Item</Text>
+          </TouchableOpacity>
+        }
       />
-      {/* Modal para novo projeto */}
-      <Modal
-        visible={isNewProjectModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsNewProjectModalVisible(false)}
-      >
+      <Modal visible={isAddModalVisible} transparent animationType="slide" onRequestClose={() => setIsAddModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>New Project</Text>
+            <Text style={styles.modalTitle}>Add New Item</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Project name"
-              value={newProjectName}
-              onChangeText={setNewProjectName}
-              autoFocus
+              placeholder="Name"
+              value={newItemName}
+              onChangeText={setNewItemName}
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Phrase"
+              value={newItemPhrase}
+              onChangeText={setNewItemPhrase}
+              multiline
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsNewProjectModalVisible(false)}
+                onPress={() => {
+                  setIsAddModalVisible(false);
+                  setNewItemName('');
+                  setNewItemPhrase('');
+                }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleCreateProject}
-              >
-                <Text style={styles.modalButtonText}>Create</Text>
+              <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddItem}>
+                <Text style={styles.modalButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+      <SettingsModal
+        visible={isSettingsVisible}
+        onClose={() => setIsSettingsVisible(false)}
+        project={selectedProjectId ? projects.find(p => p.id === selectedProjectId) : undefined}
+        onProjectUpdate={async (updatedProject) => {
+          // Atualiza o projeto na lista e persiste
+          const updatedProjects = projects.map(p =>
+            p.id === updatedProject.id ? updatedProject : p
+          );
+          await saveProjects(updatedProjects);
+          // Se o projeto atual for o mesmo, atualiza os dados locais
+          if (selectedProjectId === updatedProject.id) {
+            setPhrases(updatedProject.phrases);
+            // Opcional: se quiser, também pode recarregar outras configurações que dependem do idioma
+            // Mas a tradução e áudio já serão afetados no próximo generate.
+          }
+        }}
+      />
     </SafeAreaView>
   );
-}
-
-// Tela de frases do projeto selecionado
-const currentProject = projects.find(p => p.id === selectedProjectId);
-return (
-  <SafeAreaView style={styles.safeArea}>
-    <StatusBar barStyle="dark-content" />
-    <View style={styles.header}>
-      <TouchableOpacity onPress={() => setSelectedProjectId(null)}>
-        <Text style={styles.backButton}>← Back</Text>
-      </TouchableOpacity>
-      <Text style={styles.appName}>{currentProject?.name || 'Project'}</Text>
-      <View style={styles.headerRight}>
-        <TouchableOpacity style={styles.settingsButton} onPress={() => setIsSettingsVisible(true)}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.generateButton,
-            (isTranslating || isGeneratingAudio) && styles.disabledButton,
-          ]}
-          onPress={handleGenerate}
-          disabled={isTranslating || isGeneratingAudio}
-        >
-          <Text style={styles.generateButtonText}>
-            {isTranslating ? 'Translating...' : isGeneratingAudio ? 'Generating Audio...' : 'Generate'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-    <FlatList
-      data={phrases}
-      keyExtractor={item => item.id}
-      renderItem={renderItem}
-      contentContainerStyle={styles.listContent}
-      showsVerticalScrollIndicator={false}
-      ListFooterComponent={
-        <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
-          <Text style={styles.addButtonText}>+ Add New Item</Text>
-        </TouchableOpacity>
-      }
-    />
-    <Modal visible={isAddModalVisible} transparent animationType="slide" onRequestClose={() => setIsAddModalVisible(false)}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add New Item</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="Name"
-            value={newItemName}
-            onChangeText={setNewItemName}
-          />
-          <TextInput
-            style={styles.modalInput}
-            placeholder="Phrase"
-            value={newItemPhrase}
-            onChangeText={setNewItemPhrase}
-            multiline
-          />
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.cancelButton]}
-              onPress={() => {
-                setIsAddModalVisible(false);
-                setNewItemName('');
-                setNewItemPhrase('');
-              }}
-            >
-              <Text style={styles.modalButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleAddItem}>
-              <Text style={styles.modalButtonText}>Add</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-    <SettingsModal visible={isSettingsVisible} onClose={() => setIsSettingsVisible(false)} />
-  </SafeAreaView>
-);
 }

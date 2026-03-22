@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Modal,
-  View,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import * as project from './project';
 
 // Definição dos tipos
 type LanguageKey = 'en' | 'pt' | 'es';
@@ -60,22 +62,29 @@ const voicesByTarget: Record<LanguageKey, VoiceOption[]> = {
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
+  project?: project.Project; // se fornecido, editamos as configurações desse projeto
+  onProjectUpdate?: (updatedProject: project.Project) => void; // callback para salvar no projeto
 }
 
-export default function SettingsModal({ visible, onClose }: SettingsModalProps) {
+export default function SettingsModal({ visible, onClose, project, onProjectUpdate }: SettingsModalProps) {
   const [googleApiKey, setGoogleApiKey] = useState('');
   const [ibmApiKey, setIbmApiKey] = useState('');
   const [ibmServiceUrl, setIbmServiceUrl] = useState('');
-  const [sourceLanguage, setSourceLanguage] = useState<LanguageKey>('pt');
-  const [targetLanguage, setTargetLanguage] = useState<LanguageKey>('pt');
-  const [voice, setVoice] = useState<string>('pt-BR_CamilaNatural');
   const [loading, setLoading] = useState(true);
+  const [sourceLanguage, setSourceLanguage] = useState<LanguageKey>(project?.sourceLanguage || 'pt');
+  const [targetLanguage, setTargetLanguage] = useState<LanguageKey>(project?.targetLanguage || 'pt');
+  const [voice, setVoice] = useState<string>(project?.voice || 'pt-BR_CamilaNatural');
 
   useEffect(() => {
     if (visible) {
       loadSavedSettings();
+      if (project) {
+        setSourceLanguage(project.sourceLanguage);
+        setTargetLanguage(project.targetLanguage);
+        setVoice(project.voice);
+      }
     }
-  }, [visible]);
+  }, [visible, project]);
 
   const loadSavedSettings = async () => {
     try {
@@ -83,28 +92,14 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
         google,
         ibmKey,
         ibmUrl,
-        source,
-        target,
-        savedVoice,
       ] = await Promise.all([
         AsyncStorage.getItem(STORAGE_GOOGLE_KEY),
         AsyncStorage.getItem(STORAGE_IBM_KEY),
         AsyncStorage.getItem(STORAGE_IBM_URL),
-        AsyncStorage.getItem(STORAGE_SOURCE_LANG),
-        AsyncStorage.getItem(STORAGE_TARGET_LANG),
-        AsyncStorage.getItem(STORAGE_VOICE),
       ]);
       if (google) setGoogleApiKey(google);
       if (ibmKey) setIbmApiKey(ibmKey);
       if (ibmUrl) setIbmServiceUrl(ibmUrl);
-      // Valida se o valor carregado é uma chave válida, senão usa padrão
-      if (source && languages.some(l => l.value === source)) {
-        setSourceLanguage(source as LanguageKey);
-      }
-      if (target && languages.some(l => l.value === target)) {
-        setTargetLanguage(target as LanguageKey);
-      }
-      if (savedVoice) setVoice(savedVoice);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
@@ -121,25 +116,33 @@ export default function SettingsModal({ visible, onClose }: SettingsModalProps) 
   }, [targetLanguage, voice]);
 
   const handleSave = async () => {
+    // Validação das chaves de API (como antes)
     if (!googleApiKey.trim() || !ibmApiKey.trim() || !ibmServiceUrl.trim()) {
       Alert.alert('Error', 'All API fields are required.');
       return;
     }
+    // Salva chaves de API globalmente
+    await AsyncStorage.setItem(STORAGE_GOOGLE_KEY, googleApiKey.trim());
+    await AsyncStorage.setItem(STORAGE_IBM_KEY, ibmApiKey.trim());
+    await AsyncStorage.setItem(STORAGE_IBM_URL, ibmServiceUrl.trim());
 
-    try {
-      await AsyncStorage.setItem(STORAGE_GOOGLE_KEY, googleApiKey.trim());
-      await AsyncStorage.setItem(STORAGE_IBM_KEY, ibmApiKey.trim());
-      await AsyncStorage.setItem(STORAGE_IBM_URL, ibmServiceUrl.trim());
-      await AsyncStorage.setItem(STORAGE_SOURCE_LANG, sourceLanguage);
-      await AsyncStorage.setItem(STORAGE_TARGET_LANG, targetLanguage);
-      await AsyncStorage.setItem(STORAGE_VOICE, voice);
-      Alert.alert('Success', 'Settings saved!');
-      onClose();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save settings.');
+    // Se temos um projeto, atualiza suas configurações via callback
+    if (project && onProjectUpdate) {
+      const updatedProject = {
+        ...project,
+        sourceLanguage,
+        targetLanguage,
+        voice,
+      };
+      await onProjectUpdate(updatedProject);
+    } else {
+      // Se não há projeto (tela de lista), poderíamos salvar configurações globais padrão? Opcional.
+      // Por enquanto, apenas fecha.
     }
-  };
 
+    Alert.alert('Success', 'Settings saved!');
+    onClose();
+  };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
