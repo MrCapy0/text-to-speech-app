@@ -6,13 +6,13 @@ import {
   Alert,
   FlatList,
   Modal,
-  SafeAreaView,
   StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { synthesizeSpeech } from './audioService';
 import * as project from './project';
 import SettingsModal from './settingsModal';

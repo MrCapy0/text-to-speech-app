@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +14,6 @@ import {
 
 import * as project from './project';
 
-// Definição dos tipos
 type LanguageKey = 'en' | 'pt' | 'es';
 
 interface VoiceOption {
@@ -21,22 +21,16 @@ interface VoiceOption {
   value: string;
 }
 
-// Chaves para armazenamento
 const STORAGE_GOOGLE_KEY = 'GOOGLE_API_KEY';
 const STORAGE_IBM_KEY = 'IBM_API_KEY';
 const STORAGE_IBM_URL = 'IBM_SERVICE_URL';
-const STORAGE_SOURCE_LANG = 'SOURCE_LANGUAGE';
-const STORAGE_TARGET_LANG = 'TARGET_LANGUAGE';
-const STORAGE_VOICE = 'VOICE';
 
-// Opções de idiomas (com tipo seguro)
 const languages: { label: string; value: LanguageKey }[] = [
   { label: 'Português', value: 'pt' },
   { label: 'Inglês', value: 'en' },
   { label: 'Espanhol', value: 'es' },
 ];
 
-// Vozes por idioma alvo (mapeamento tipo seguro)
 const voicesByTarget: Record<LanguageKey, VoiceOption[]> = {
   en: [
     { label: 'Australian Heidi', value: 'en-AU_HeidiNatural' },
@@ -62,8 +56,8 @@ const voicesByTarget: Record<LanguageKey, VoiceOption[]> = {
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
-  project?: project.Project; // se fornecido, editamos as configurações desse projeto
-  onProjectUpdate?: (updatedProject: project.Project) => void; // callback para salvar no projeto
+  project?: project.Project;
+  onProjectUpdate?: (updatedProject: project.Project) => void;
 }
 
 export default function SettingsModal({ visible, onClose, project, onProjectUpdate }: SettingsModalProps) {
@@ -88,11 +82,7 @@ export default function SettingsModal({ visible, onClose, project, onProjectUpda
 
   const loadSavedSettings = async () => {
     try {
-      const [
-        google,
-        ibmKey,
-        ibmUrl,
-      ] = await Promise.all([
+      const [google, ibmKey, ibmUrl] = await Promise.all([
         AsyncStorage.getItem(STORAGE_GOOGLE_KEY),
         AsyncStorage.getItem(STORAGE_IBM_KEY),
         AsyncStorage.getItem(STORAGE_IBM_URL),
@@ -107,7 +97,6 @@ export default function SettingsModal({ visible, onClose, project, onProjectUpda
     }
   };
 
-  // Quando o idioma alvo muda, ajusta a voz para a primeira disponível se a atual não for compatível
   useEffect(() => {
     const availableVoices = voicesByTarget[targetLanguage] || [];
     if (availableVoices.length > 0 && !availableVoices.some(v => v.value === voice)) {
@@ -116,17 +105,14 @@ export default function SettingsModal({ visible, onClose, project, onProjectUpda
   }, [targetLanguage, voice]);
 
   const handleSave = async () => {
-    // Validação das chaves de API (como antes)
-    if (!googleApiKey.trim() || !ibmApiKey.trim() || !ibmServiceUrl.trim()) {
-      Alert.alert('Error', 'All API fields are required.');
-      return;
-    }
-    // Salva chaves de API globalmente
+    // if (!googleApiKey.trim() || !ibmApiKey.trim() || !ibmServiceUrl.trim()) {
+    //   Alert.alert('Error', 'All API fields are required.');
+    //   return;
+    // }
     await AsyncStorage.setItem(STORAGE_GOOGLE_KEY, googleApiKey.trim());
     await AsyncStorage.setItem(STORAGE_IBM_KEY, ibmApiKey.trim());
     await AsyncStorage.setItem(STORAGE_IBM_URL, ibmServiceUrl.trim());
 
-    // Se temos um projeto, atualiza suas configurações via callback
     if (project && onProjectUpdate) {
       const updatedProject = {
         ...project,
@@ -135,112 +121,122 @@ export default function SettingsModal({ visible, onClose, project, onProjectUpda
         voice,
       };
       await onProjectUpdate(updatedProject);
-    } else {
-      // Se não há projeto (tela de lista), poderíamos salvar configurações globais padrão? Opcional.
-      // Por enquanto, apenas fecha.
     }
 
     Alert.alert('Success', 'Settings saved!');
     onClose();
   };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Settings</Text>
+        <ScrollView
+          contentContainerStyle={styles.modalScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Settings</Text>
 
-          {/* Project Section */}
-          <Text style={styles.sectionTitle}>Project</Text>
+            <Text style={styles.sectionTitle}>Project</Text>
 
-          <Text style={styles.label}>Source Language</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={sourceLanguage}
-              onValueChange={(itemValue) => setSourceLanguage(itemValue as LanguageKey)}
-              style={styles.picker}
-            >
-              {languages.map(lang => (
-                <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
-              ))}
-            </Picker>
+            <Text style={styles.label}>Source Language</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={sourceLanguage}
+                onValueChange={(itemValue) => setSourceLanguage(itemValue as LanguageKey)}
+                style={styles.picker}
+                itemStyle={styles.pickerItem} // Para iOS, mas também ajuda
+              >
+                {languages.map(lang => (
+                  <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={styles.label}>Target Language</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={targetLanguage}
+                onValueChange={(itemValue) => setTargetLanguage(itemValue as LanguageKey)}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                {languages.map(lang => (
+                  <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={styles.label}>Voice</Text>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={voice}
+                onValueChange={(itemValue) => setVoice(itemValue)}
+                style={styles.picker}
+                itemStyle={styles.pickerItem}
+              >
+                {(voicesByTarget[targetLanguage] || []).map(v => (
+                  <Picker.Item key={v.value} label={v.label} value={v.value} />
+                ))}
+              </Picker>
+            </View>
+
+            <Text style={styles.sectionTitle}>API Keys</Text>
+
+            <Text style={styles.label}>Google Translate API Key</Text>
+            <TextInput
+              style={styles.input}
+              value={googleApiKey}
+              onChangeText={setGoogleApiKey}
+              placeholder="Enter Google API key"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              editable={!loading}
+              returnKeyType="done"
+            />
+
+            <Text style={styles.label}>IBM Watson API Key</Text>
+            <TextInput
+              style={styles.input}
+              value={ibmApiKey}
+              onChangeText={setIbmApiKey}
+              placeholder="Enter IBM API key"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              editable={!loading}
+              returnKeyType="done"
+            />
+
+            <Text style={styles.label}>IBM Watson Service URL</Text>
+            <TextInput
+              style={styles.input}
+              value={ibmServiceUrl}
+              onChangeText={setIbmServiceUrl}
+              placeholder="e.g. https://api.us-south.text-to-speech.watson.cloud.ibm.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+              returnKeyType="done"
+            />
+
+            <View style={styles.buttonRow}>
+              <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
+                <Text style={styles.buttonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <Text style={styles.label}>Target Language</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={targetLanguage}
-              onValueChange={(itemValue) => setTargetLanguage(itemValue as LanguageKey)}
-              style={styles.picker}
-            >
-              {languages.map(lang => (
-                <Picker.Item key={lang.value} label={lang.label} value={lang.value} />
-              ))}
-            </Picker>
-          </View>
-
-          <Text style={styles.label}>Voice</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={voice}
-              onValueChange={(itemValue) => setVoice(itemValue)}
-              style={styles.picker}
-            >
-              {(voicesByTarget[targetLanguage] || []).map(v => (
-                <Picker.Item key={v.value} label={v.label} value={v.value} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* API Section */}
-          <Text style={styles.sectionTitle}>API Keys</Text>
-
-          <Text style={styles.label}>Google Translate API Key</Text>
-          <TextInput
-            style={styles.input}
-            value={googleApiKey}
-            onChangeText={setGoogleApiKey}
-            placeholder="Enter Google API key"
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-          />
-
-          <Text style={styles.label}>IBM Watson API Key</Text>
-          <TextInput
-            style={styles.input}
-            value={ibmApiKey}
-            onChangeText={setIbmApiKey}
-            placeholder="Enter IBM API key"
-            autoCapitalize="none"
-            autoCorrect={false}
-            secureTextEntry
-          />
-
-          <Text style={styles.label}>IBM Watson Service URL</Text>
-          <TextInput
-            style={styles.input}
-            value={ibmServiceUrl}
-            onChangeText={setIbmServiceUrl}
-            placeholder="e.g. https://api.us-south.text-to-speech.watson.cloud.ibm.com"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-              <Text style={styles.buttonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-              <Text style={styles.buttonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
 }
 
-// Styles (mantidos iguais)
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -248,12 +244,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  modalScroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 20,
     width: '90%',
-    maxHeight: '80%',
+    alignSelf: 'center',
   },
   modalTitle: {
     fontSize: 20,
@@ -279,10 +280,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 12,
     backgroundColor: '#fff',
+    overflow: 'hidden', // importante para Android
   },
   picker: {
     height: 50,
     width: '100%',
+    color: '#000', // garante texto preto
+  },
+  pickerItem: {
+    color: '#000', // para iOS
   },
   input: {
     borderWidth: 1,
@@ -291,6 +297,8 @@ const styles = StyleSheet.create({
     padding: 10,
     fontSize: 16,
     marginBottom: 16,
+    color: '#000',
+    backgroundColor: '#fff',
   },
   buttonRow: {
     flexDirection: 'row',
