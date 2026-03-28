@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "text-to-speech-app",
-    "slug": "text-to-speech-app",
+    "slug": "text-to-speech",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -44,6 +44,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "1db0128d-dcc8-4880-ba27-74b05c6d0f5a"
+      }
+    },
+    "owner": "mrcapys-organization"
   }
 }
