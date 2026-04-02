@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "text-to-speech-app",
+    "name": "Text To Speech",
     "slug": "text-to-speech",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.texttospeechapp"
+      "package": "com.mrcapy.textospeech"
     },
     "web": {
       "output": "static",
