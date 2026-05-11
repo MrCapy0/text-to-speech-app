@@ -263,8 +263,6 @@ export const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 4,
-        alignSelf: 'flex-start',
-        marginTop: 8,
     },
     audioButtonText: {
         color: '#fff',
@@ -299,5 +297,21 @@ export const styles = StyleSheet.create({
         fontSize: 16,
         color: '#007AFF',
         marginRight: 8,
+    }, exportButton: {
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+    },
+    exportButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+        gap: 8,
     },
 });

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
@@ -192,6 +193,14 @@ export default function HomeScreen() {
     } catch (error) {
       console.error('Erro ao reproduzir áudio:', error);
       Alert.alert('Erro', 'Não foi possível reproduzir o áudio');
+    }
+  };
+
+  const shareAudio = async (fileUri: string) => {
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(fileUri);
+    } else {
+      Alert.alert('Erro', 'Compartilhamento não disponível no dispositivo.');
     }
   };
 
@@ -573,18 +582,26 @@ export default function HomeScreen() {
                 {translations.has(item.id) && (
                   <Text style={styles.translatedText}>"{translations.get(item.id)}"</Text>
                 )}
-                {audioFiles.has(item.id) && (
-                  <TouchableOpacity
-                    style={styles.audioButton}
-                    onPress={() => playAudio(item.id, audioFiles.get(item.id)!)}
-                  >
-                    <Text style={styles.audioButtonText}>
-                      {playingId === item.id ? '⏹️ Stop' : '▶️ Play'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
               </View>
             )}
+          </View>
+        )}
+        {audioFiles.has(item.id) && (
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.audioButton}
+              onPress={() => playAudio(item.id, audioFiles.get(item.id)!)}
+            >
+              <Text style={styles.audioButtonText}>
+                {playingId === item.id ? '⏹️ Stop' : '▶️ Play'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.exportButton}
+              onPress={() => shareAudio(audioFiles.get(item.id)!)}
+            >
+              <Text style={styles.exportButtonText}>📤 Export</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
