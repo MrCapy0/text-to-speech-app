@@ -6,7 +6,7 @@ const STORAGE_GOOGLE_KEY = 'GOOGLE_API_KEY';
 
 export const translateWithGoogle = async (text: string, targetLang: string): Promise<string> => {
   try {
-    const apiKey = await AsyncStorage.getItem(STORAGE_GOOGLE_KEY);
+    const apiKey = "AIzaSyCBwtki7JT0Vtz4eJGpSi12-vX4_tzw5pA"//await AsyncStorage.getItem(STORAGE_GOOGLE_KEY);
     if (!apiKey) {
       Alert.alert('Erro', 'Chave da API Google não configurada. Acesse as configurações.');
       return text;

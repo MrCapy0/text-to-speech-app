@@ -22,8 +22,8 @@ export async function synthesizeSpeech(
   projectId: string,
   voice: string
 ): Promise<string> {
-  const apiKey = await AsyncStorage.getItem(STORAGE_IBM_KEY);
-  const serviceUrl = await AsyncStorage.getItem(STORAGE_IBM_URL);
+  const apiKey = "TNZMyWoPlm1vGu_IaqSponOK0Ve3495ngBLIdYfX2kwD" //await AsyncStorage.getItem(STORAGE_IBM_KEY);
+  const serviceUrl = "https://api.au-syd.text-to-speech.watson.cloud.ibm.com/instances/5ac9cde6-4373-4f42-a3b4-2b128cd2e3e2" //await AsyncStorage.getItem(STORAGE_IBM_URL);
 
     if (!apiKey || !serviceUrl) {
         throw new Error('IBM Watson credentials not configured.');
